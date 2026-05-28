@@ -10,7 +10,7 @@ interface WallProps {
   color?: number | string
 }
 
-export function Wall({ physics, position, width, height, depth, color = 0xc0c0c0 }: WallProps) {
+export function Wall({ physics, position, width, height, depth, color = 0xf5f5dc }: WallProps) {
   useEffect(() => {
     if (!physics) return
     const { world, R } = physics

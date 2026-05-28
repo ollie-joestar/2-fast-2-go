@@ -109,13 +109,13 @@ export function Scene({ onHudUpdate }: SceneProps) {
 
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[4000, 4000]} />
-        <meshLambertMaterial color={0x555555} />
+        <meshLambertMaterial color={0xf5f5dc} />
       </mesh>
 
       <Track
         physics={physics}
         trackPath="/tracks/ShippingDock"
-        showCheckpoints={true}
+        showCheckpoints={false}
         onLoad={handleTrackLoad}
       />
 
