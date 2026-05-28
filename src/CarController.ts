@@ -113,4 +113,10 @@ export class CarController {
   }
 
   get position(): RAPIER.Vector { return this.body.translation(); }
+
+  teleportTo(x: number, y: number, z: number): void {
+    this.body.setTranslation({ x, y, z }, true)
+    this.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    this.velocity.set(0, 0, 0)
+  }
 }

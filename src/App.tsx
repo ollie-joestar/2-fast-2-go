@@ -18,8 +18,8 @@ export default function App() {
         gl={{ antialias: true }}
         dpr={Math.min(window.devicePixelRatio, 2)}
       >
-        <color attach="background" args={['#1a1a2e']} />
-        <fogExp2 attach="fog" args={['#1a1a2e', 0.018]} />
+        <color attach="background" args={['#4a6ace']} />
+        <fogExp2 attach="fog" args={['#2a2a2a', 0.012]} />
         <Scene onHudUpdate={handleHudUpdate} />
       </Canvas>
 

@@ -13,9 +13,9 @@ export async function initPhysics(): Promise<PhysicsContext> {
   return { world, R: RAPIER };
 }
 
-export function createGround({ world, R }: PhysicsContext): void {
+export function createGround({ world, R }: PhysicsContext, halfSize = 2000): void {
   const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(0, -0.1, 0));
-  world.createCollider(R.ColliderDesc.cuboid(50, 0.1, 50), body);
+  world.createCollider(R.ColliderDesc.cuboid(halfSize, 0.1, halfSize), body);
 }
 
 export function createCarBody({ world, R }: PhysicsContext): RAPIER.RigidBody {

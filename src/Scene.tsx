@@ -1,21 +1,12 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { initPhysics, createGround, createCarBody, createWall, type PhysicsContext } from './Physics'
+import { initPhysics, createGround, createCarBody, type PhysicsContext } from './Physics'
 import { CarController } from './CarController'
 import { Input } from './Input'
 import { Car } from './Car'
-
-const HALF = 20
-const WALL_H = 1.5
-const WALL_T = 0.5
-
-const WALL_DEFS: [number, number, number, number, number, number][] = [
-  [0, WALL_H, -HALF, HALF * 2, WALL_H * 2, WALL_T * 2],  // north
-  [0, WALL_H, HALF, HALF * 2, WALL_H * 2, WALL_T * 2],  // south
-  [-HALF, WALL_H, 0, WALL_T * 2, WALL_H * 2, HALF * 2],  // west
-  [HALF, WALL_H, 0, WALL_T * 2, WALL_H * 2, HALF * 2],  // east
-]
+import { Track } from './Track.tsx'
+import type { TrackLoadInfo } from './TrackTypes'
 
 interface SceneProps {
   onHudUpdate: (kmh: number, drifting: boolean) => void
@@ -23,34 +14,53 @@ interface SceneProps {
 
 export function Scene({ onHudUpdate }: SceneProps) {
   const carRef = useRef<THREE.Mesh>(null!)
+  // Ref for zero-overhead access inside useFrame
   const physicsRef = useRef<PhysicsContext | null>(null)
+  // State so React re-renders (and passes physics down to Track) when Rapier is ready
+  const [physics, setPhysics] = useState<PhysicsContext | null>(null)
   const carControllerRef = useRef<CarController | null>(null)
   const inputRef = useRef<Input | null>(null)
   const readyRef = useRef(false)
+  // Stores the track's desired spawn point when onLoad fires before Rapier finishes loading
+  const pendingCarStartRef = useRef<[number, number, number] | null>(null)
 
   const { camera } = useThree()
   const camPosRef = useRef(new THREE.Vector3(0, 8, -12))
   const camTargetRef = useRef(new THREE.Vector3())
   const fwdScratch = useRef(new THREE.Vector3())
-  // Tracks car world position so camera can follow even before physics loads
   const carWorldPos = useRef(new THREE.Vector3())
 
   useEffect(() => {
     const input = new Input()
     inputRef.current = input
 
-    initPhysics().then((physics) => {
-      physicsRef.current = physics
-      createGround(physics)
-      createWall(physics, 0, WALL_H, -HALF, HALF, WALL_H, WALL_T)
-      createWall(physics, 0, WALL_H, HALF, HALF, WALL_H, WALL_T)
-      createWall(physics, -HALF, WALL_H, 0, WALL_T, WALL_H, HALF)
-      createWall(physics, HALF, WALL_H, 0, WALL_T, WALL_H, HALF)
-      carControllerRef.current = new CarController(createCarBody(physics))
+    initPhysics().then((ctx) => {
+      physicsRef.current = ctx
+      createGround(ctx)
+      const ctrl = new CarController(createCarBody(ctx))
+      carControllerRef.current = ctrl
+      // If the track fetch finished before Rapier was ready, apply the queued spawn point now
+      if (pendingCarStartRef.current) {
+        const [x, y, z] = pendingCarStartRef.current
+        ctrl.teleportTo(x, y, z)
+        pendingCarStartRef.current = null
+      }
       readyRef.current = true
+      // Trigger re-render so Track receives the physics context
+      setPhysics(ctx)
     })
 
     return () => { input.destroy() }
+  }, [])
+
+  const handleTrackLoad = useCallback(({ carStart }: TrackLoadInfo) => {
+    if (carControllerRef.current) {
+      // Rapier already ready — teleport immediately
+      carControllerRef.current.teleportTo(carStart[0], carStart[1], carStart[2])
+    } else {
+      // Rapier not ready yet — queue it for the physics init callback
+      pendingCarStartRef.current = carStart
+    }
   }, [])
 
   useFrame((_, dt) => {
@@ -88,7 +98,6 @@ export function Scene({ onHudUpdate }: SceneProps) {
 
   return (
     <>
-      {/* Lights */}
       <directionalLight
         color={0xfff5e0}
         intensity={2.5}
@@ -96,26 +105,20 @@ export function Scene({ onHudUpdate }: SceneProps) {
         castShadow
         shadow-mapSize={[2048, 2048]}
       />
-      <ambientLight color={0x304060} intensity={1.2} />
+      <ambientLight color={0xffffff} intensity={1.2} />
 
-      {/* Ground */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[HALF * 2, HALF * 2]} />
-        <meshLambertMaterial color={0x2a4a1e} />
+        <planeGeometry args={[4000, 4000]} />
+        <meshLambertMaterial color={0x555555} />
       </mesh>
 
-      {/* Grid */}
-      <gridHelper args={[HALF * 2, 20, 0x1a1a1e, 0x2e2e20]} />
+      <Track
+        physics={physics}
+        trackPath="/tracks/ShippingDock"
+        showCheckpoints={true}
+        onLoad={handleTrackLoad}
+      />
 
-      {/* Arena walls */}
-      {WALL_DEFS.map(([cx, cy, cz, w, h, d], i) => (
-        <mesh key={i} position={[cx, cy, cz]} castShadow receiveShadow>
-          <boxGeometry args={[w, h, d]} />
-          <meshLambertMaterial color={0x4c5e70} />
-        </mesh>
-      ))}
-
-      {/* Car body */}
       <Car carRef={carRef} />
     </>
   )
