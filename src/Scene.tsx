@@ -6,14 +6,16 @@ import { CarController } from './CarController'
 import { Input } from './Input'
 import { Car } from './Car'
 import { Track } from './Track.tsx'
-import type { TrackLoadInfo } from './TrackTypes'
+import type { TrackLoadInfo, CheckpointDef } from './TrackTypes'
 import { COLOR_SCHEMES } from './options.ts'
 
 interface SceneProps {
-  onHudUpdate: (kmh: number, lapMs: number | null, bestMs: number | null) => void
+  onHudUpdate: (kmh: number, lapMs: number | null, bestMs: number | null, lastMs: number | null) => void
+  onDebugUpdate?: (carX: number, carZ: number, cpsPassed: number, cpsTotal: number, next3: [number, number][]) => void
+  showDebug?: boolean
 }
 
-export function Scene({ onHudUpdate }: SceneProps) {
+export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: SceneProps) {
   const carRef = useRef<THREE.Mesh>(null!)
   // Ref for zero-overhead access inside useFrame
   const physicsRef = useRef<PhysicsContext | null>(null)
@@ -27,6 +29,9 @@ export function Scene({ onHudUpdate }: SceneProps) {
   const pendingCarYawRef = useRef<number | null>(null)
   const lapStartRef = useRef<number | null>(null)   // performance.now() at current lap start
   const bestLapRef = useRef<number | null>(null)    // best completed lap in ms
+  const lastLapRef = useRef<number | null>(null)    // most recently completed lap in ms
+  const checkpointsRef = useRef<CheckpointDef[]>([])
+  const nextCpRef = useRef(0)                       // index of next checkpoint to pass
 
   const { camera } = useThree()
   const camPosRef = useRef(new THREE.Vector3(0, 8, -12))
@@ -59,16 +64,28 @@ export function Scene({ onHudUpdate }: SceneProps) {
 
   const handleFinishCross = useCallback(() => {
     const now = performance.now()
-    if (lapStartRef.current !== null) {
-      const lapMs = now - lapStartRef.current
-      if (bestLapRef.current === null || lapMs < bestLapRef.current) {
-        bestLapRef.current = lapMs
-      }
+    const cps = checkpointsRef.current
+
+    if (lapStartRef.current === null) {
+      // First crossing — start the timer; skip cp[0] (it's the start tile, same gate)
+      lapStartRef.current = now
+      nextCpRef.current = 1
+      return
+    }
+
+    if (nextCpRef.current < cps.length) return  // shortcut taken — ignore
+
+    const lapMs = now - lapStartRef.current
+    lastLapRef.current = lapMs
+    if (bestLapRef.current === null || lapMs < bestLapRef.current) {
+      bestLapRef.current = lapMs
     }
     lapStartRef.current = now
+    nextCpRef.current = 1
   }, [])
 
-  const handleTrackLoad = useCallback(({ carStart, carYaw }: TrackLoadInfo) => {
+  const handleTrackLoad = useCallback(({ carStart, carYaw, checkpoints }: TrackLoadInfo) => {
+    checkpointsRef.current = checkpoints
     if (carControllerRef.current) {
       // Rapier already ready — teleport immediately
       carControllerRef.current.teleportTo(carStart[0], carStart[1], carStart[2], carYaw)
@@ -97,8 +114,30 @@ export function Scene({ onHudUpdate }: SceneProps) {
       carRef.current.position.set(pos.x, pos.y, pos.z)
       carRef.current.rotation.set(0, car.yaw, 0)
 
+      // Checkpoint AABB detection (XZ only; size field is axis-aligned for all tile types)
+      const cps = checkpointsRef.current
+      const nextIdx = nextCpRef.current
+      if (nextIdx < cps.length) {
+        const cp = cps[nextIdx]
+        if (
+          Math.abs(carWorldPos.current.x - cp.position[0]) <= cp.size[0] / 2 &&
+          Math.abs(carWorldPos.current.z - cp.position[2]) <= cp.size[2] / 2
+        ) {
+          nextCpRef.current++
+        }
+      }
+
       const lapMs = lapStartRef.current !== null ? performance.now() - lapStartRef.current : null
-      onHudUpdate(car.velocity.length() * 3.6, lapMs, bestLapRef.current)
+      onHudUpdate(car.velocity.length() * 3.6, lapMs, bestLapRef.current, lastLapRef.current)
+
+      if (onDebugUpdate && cps.length > 0) {
+        const ni = nextCpRef.current
+        const next3 = Array.from({ length: 3 }, (_, i): [number, number] => {
+          const cp = cps[(ni + i) % cps.length]
+          return [cp.position[0], cp.position[2]]
+        })
+        onDebugUpdate(carWorldPos.current.x, carWorldPos.current.z, Math.max(0, ni - 1), cps.length - 1, next3)
+      }
     }
 
     // Camera always follows (uses origin until physics is ready)
@@ -127,7 +166,7 @@ export function Scene({ onHudUpdate }: SceneProps) {
       <Track
         physics={physics}
         trackPath="/tracks/ShippingDock"
-        showCheckpoints={true}
+        showCheckpoints={showDebug}
         onLoad={handleTrackLoad}
         carPositionRef={carWorldPos}
         onFinishCross={handleFinishCross}
