@@ -10,7 +10,7 @@ import type { TrackLoadInfo } from './TrackTypes'
 import { COLOR_SCHEMES } from './options.ts'
 
 interface SceneProps {
-  onHudUpdate: (kmh: number) => void
+  onHudUpdate: (kmh: number, lapMs: number | null, bestMs: number | null) => void
 }
 
 export function Scene({ onHudUpdate }: SceneProps) {
@@ -24,6 +24,9 @@ export function Scene({ onHudUpdate }: SceneProps) {
   const readyRef = useRef(false)
   // Stores the track's desired spawn point when onLoad fires before Rapier finishes loading
   const pendingCarStartRef = useRef<[number, number, number] | null>(null)
+  const pendingCarYawRef = useRef<number | null>(null)
+  const lapStartRef = useRef<number | null>(null)   // performance.now() at current lap start
+  const bestLapRef = useRef<number | null>(null)    // best completed lap in ms
 
   const { camera } = useThree()
   const camPosRef = useRef(new THREE.Vector3(0, 8, -12))
@@ -42,8 +45,9 @@ export function Scene({ onHudUpdate }: SceneProps) {
       // If the track fetch finished before Rapier was ready, apply the queued spawn point now
       if (pendingCarStartRef.current) {
         const [x, y, z] = pendingCarStartRef.current
-        ctrl.teleportTo(x, y, z)
+        ctrl.teleportTo(x, y, z, pendingCarYawRef.current ?? undefined)
         pendingCarStartRef.current = null
+        pendingCarYawRef.current = null
       }
       readyRef.current = true
       // Trigger re-render so Track receives the physics context
@@ -53,13 +57,25 @@ export function Scene({ onHudUpdate }: SceneProps) {
     return () => { input.destroy() }
   }, [])
 
-  const handleTrackLoad = useCallback(({ carStart }: TrackLoadInfo) => {
+  const handleFinishCross = useCallback(() => {
+    const now = performance.now()
+    if (lapStartRef.current !== null) {
+      const lapMs = now - lapStartRef.current
+      if (bestLapRef.current === null || lapMs < bestLapRef.current) {
+        bestLapRef.current = lapMs
+      }
+    }
+    lapStartRef.current = now
+  }, [])
+
+  const handleTrackLoad = useCallback(({ carStart, carYaw }: TrackLoadInfo) => {
     if (carControllerRef.current) {
       // Rapier already ready — teleport immediately
-      carControllerRef.current.teleportTo(carStart[0], carStart[1], carStart[2])
+      carControllerRef.current.teleportTo(carStart[0], carStart[1], carStart[2], carYaw)
     } else {
       // Rapier not ready yet — queue it for the physics init callback
       pendingCarStartRef.current = carStart
+      pendingCarYawRef.current = carYaw
     }
   }, [])
 
@@ -81,7 +97,8 @@ export function Scene({ onHudUpdate }: SceneProps) {
       carRef.current.position.set(pos.x, pos.y, pos.z)
       carRef.current.rotation.set(0, car.yaw, 0)
 
-      onHudUpdate(car.velocity.length() * 3.6)
+      const lapMs = lapStartRef.current !== null ? performance.now() - lapStartRef.current : null
+      onHudUpdate(car.velocity.length() * 3.6, lapMs, bestLapRef.current)
     }
 
     // Camera always follows (uses origin until physics is ready)
@@ -112,6 +129,8 @@ export function Scene({ onHudUpdate }: SceneProps) {
         trackPath="/tracks/ShippingDock"
         showCheckpoints={true}
         onLoad={handleTrackLoad}
+        carPositionRef={carWorldPos}
+        onFinishCross={handleFinishCross}
       />
 
       <Car carRef={carRef} />

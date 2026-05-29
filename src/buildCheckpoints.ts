@@ -108,3 +108,17 @@ export function carStartFromData(data: TrackData): [number, number, number] {
     default: return [0, 1, half]
   }
 }
+
+// Returns the Y-axis rotation (yaw) the car should face at spawn.
+// Forward direction formula: fwd = (sin(yaw), 0, cos(yaw))
+//   yaw=0      → +Z (South)   yaw=π    → -Z (North)
+//   yaw=π/2    → +X (East)    yaw=-π/2 → -X (West)
+export function carYawFromData(data: TrackData): number {
+  switch (data.grid[data.startRow]?.[data.startCol] ?? 8) {
+    case 8: return Math.PI        // N travel → face -Z
+    case 2: return 0              // S travel → face +Z
+    case 6: return Math.PI / 2   // E travel → face +X
+    case 4: return -Math.PI / 2  // W travel → face -X
+    default: return Math.PI
+  }
+}

@@ -18,6 +18,7 @@ export interface TrackData {
 
 export interface TrackLoadInfo {
   carStart: [number, number, number]
+  carYaw: number
   checkpoints: CheckpointDef[]
   laps: number
 }
