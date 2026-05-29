@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { initPhysics, createCarBody, type PhysicsContext } from './Physics'
+import { initPhysics, createCarBody, createGround, type PhysicsContext } from './Physics'
 import { CarController } from './CarController'
 import { Input } from './Input'
 import { Car } from './Car.tsx'
@@ -59,6 +59,7 @@ export function Scene({
     inputRef.current = input
 
     initPhysics().then((ctx) => {
+      createGround(ctx)
       physicsRef.current = ctx
       const ctrl = new CarController(createCarBody(ctx))
       carControllerRef.current = ctrl
