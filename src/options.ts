@@ -10,9 +10,6 @@ interface ColorScheme {
   car?: number,
 }
 
-interface CameraConfig {
-
-}
 
 export const COLOR_SCHEMES: Record<string, ColorScheme> = {
   default: {

@@ -4,34 +4,49 @@ import * as THREE from 'three'
 import { initPhysics, createCarBody, type PhysicsContext } from './Physics'
 import { CarController } from './CarController'
 import { Input } from './Input'
-import { Car } from './Car'
+import { Car } from './Car.tsx'
 import { Track } from './Track.tsx'
+import { RemoteCarRenderer } from './RemoteCarRenderer.tsx'
 import type { TrackLoadInfo, CheckpointDef } from './TrackTypes'
+import type { RemotePlayer } from './useMultiplayer.ts'
 import { COLOR_SCHEMES } from './options.ts'
+
+// Module-level scratch objects — no per-frame allocation
+const _quatScratch = new THREE.Quaternion()
+const _yAxis = new THREE.Vector3(0, 1, 0)
 
 interface SceneProps {
   onHudUpdate: (kmh: number, lapMs: number | null, bestMs: number | null, lastMs: number | null) => void
   onDebugUpdate?: (carX: number, carZ: number, cpsPassed: number, cpsTotal: number, next3: [number, number][]) => void
   showDebug?: boolean
+  // Multiplayer
+  remotePlayers?: RemotePlayer[]
+  broadcast?: (pos: [number, number, number], quat: [number, number, number, number], lap: number, cp: number) => void
+  onProgressUpdate?: (lap: number, cp: number) => void
 }
 
-export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: SceneProps) {
+export function Scene({
+  onHudUpdate,
+  onDebugUpdate,
+  showDebug = false,
+  remotePlayers,
+  broadcast,
+  onProgressUpdate,
+}: SceneProps) {
   const carRef = useRef<THREE.Mesh>(null!)
-  // Ref for zero-overhead access inside useFrame
   const physicsRef = useRef<PhysicsContext | null>(null)
-  // State so React re-renders (and passes physics down to Track) when Rapier is ready
   const [physics, setPhysics] = useState<PhysicsContext | null>(null)
   const carControllerRef = useRef<CarController | null>(null)
   const inputRef = useRef<Input | null>(null)
   const readyRef = useRef(false)
-  // Stores the track's desired spawn point when onLoad fires before Rapier finishes loading
   const pendingCarStartRef = useRef<[number, number, number] | null>(null)
   const pendingCarYawRef = useRef<number | null>(null)
-  const lapStartRef = useRef<number | null>(null)   // performance.now() at current lap start
-  const bestLapRef = useRef<number | null>(null)    // best completed lap in ms
-  const lastLapRef = useRef<number | null>(null)    // most recently completed lap in ms
+  const lapStartRef = useRef<number | null>(null)
+  const bestLapRef = useRef<number | null>(null)
+  const lastLapRef = useRef<number | null>(null)
   const checkpointsRef = useRef<CheckpointDef[]>([])
-  const nextCpRef = useRef(0)                       // index of next checkpoint to pass
+  const nextCpRef = useRef(0)
+  const currentLapRef = useRef(0)
 
   const { camera } = useThree()
   const camPosRef = useRef(new THREE.Vector3(0, 8, -12))
@@ -47,7 +62,6 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
       physicsRef.current = ctx
       const ctrl = new CarController(createCarBody(ctx))
       carControllerRef.current = ctrl
-      // If the track fetch finished before Rapier was ready, apply the queued spawn point now
       if (pendingCarStartRef.current) {
         const [x, y, z] = pendingCarStartRef.current
         ctrl.teleportTo(x, y, z, pendingCarYawRef.current ?? undefined)
@@ -55,7 +69,6 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
         pendingCarYawRef.current = null
       }
       readyRef.current = true
-      // Trigger re-render so Track receives the physics context
       setPhysics(ctx)
     })
 
@@ -67,13 +80,14 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
     const cps = checkpointsRef.current
 
     if (lapStartRef.current === null) {
-      // First crossing — start the timer; skip cp[0] (it's the start tile, same gate)
       lapStartRef.current = now
       nextCpRef.current = 1
+      currentLapRef.current = 1
+      onProgressUpdate?.(1, 1)
       return
     }
 
-    if (nextCpRef.current < cps.length) return  // shortcut taken — ignore
+    if (nextCpRef.current < cps.length) return
 
     const lapMs = now - lapStartRef.current
     lastLapRef.current = lapMs
@@ -82,15 +96,15 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
     }
     lapStartRef.current = now
     nextCpRef.current = 1
-  }, [])
+    currentLapRef.current++
+    onProgressUpdate?.(currentLapRef.current, 1)
+  }, [onProgressUpdate])
 
   const handleTrackLoad = useCallback(({ carStart, carYaw, checkpoints }: TrackLoadInfo) => {
     checkpointsRef.current = checkpoints
     if (carControllerRef.current) {
-      // Rapier already ready — teleport immediately
       carControllerRef.current.teleportTo(carStart[0], carStart[1], carStart[2], carYaw)
     } else {
-      // Rapier not ready yet — queue it for the physics init callback
       pendingCarStartRef.current = carStart
       pendingCarYawRef.current = carYaw
     }
@@ -99,12 +113,10 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
   useFrame((_, dt) => {
     const clampedDt = Math.min(dt, 0.05)
 
-    // Physics + car update (only once Rapier is ready)
     if (readyRef.current && physicsRef.current && carControllerRef.current && inputRef.current) {
       const car = carControllerRef.current
       const input = inputRef.current
 
-      // Same 3-step order as the vanilla loop
       car.update(clampedDt, input)
       physicsRef.current.world.step()
       car.readbackFromBody()
@@ -114,7 +126,7 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
       carRef.current.position.set(pos.x, pos.y, pos.z)
       carRef.current.rotation.set(0, car.yaw, 0)
 
-      // Checkpoint AABB detection (XZ only; size field is axis-aligned for all tile types)
+      // Checkpoint AABB detection
       const cps = checkpointsRef.current
       const nextIdx = nextCpRef.current
       if (nextIdx < cps.length) {
@@ -124,7 +136,19 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
           Math.abs(carWorldPos.current.z - cp.position[2]) <= cp.size[2] / 2
         ) {
           nextCpRef.current++
+          onProgressUpdate?.(currentLapRef.current, nextCpRef.current)
         }
+      }
+
+      // Broadcast position + race progress to other players
+      if (broadcast) {
+        _quatScratch.setFromAxisAngle(_yAxis, car.yaw)
+        broadcast(
+          [pos.x, pos.y, pos.z],
+          [_quatScratch.x, _quatScratch.y, _quatScratch.z, _quatScratch.w],
+          currentLapRef.current,
+          nextCpRef.current,
+        )
       }
 
       const lapMs = lapStartRef.current !== null ? performance.now() - lapStartRef.current : null
@@ -140,7 +164,7 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
       }
     }
 
-    // Camera always follows (uses origin until physics is ready)
+    // Camera always follows
     const yaw = carControllerRef.current?.yaw ?? 0
     fwdScratch.current.set(Math.sin(yaw), 0, Math.cos(yaw))
     const desired = carWorldPos.current.clone()
@@ -173,6 +197,10 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
       />
 
       <Car showdebug={showDebug} carRef={carRef} />
+
+      {remotePlayers?.map(remote => (
+        <RemoteCarRenderer key={remote.id} remote={remote} />
+      ))}
     </>
   )
 }
