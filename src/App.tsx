@@ -1,14 +1,13 @@
 import { useRef, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Scene } from './Scene.tsx'
+import { COLOR_SCHEMES } from './options.ts'
 
 export default function App() {
   const speedRef = useRef<HTMLSpanElement>(null)
-  const driftRef = useRef<HTMLSpanElement>(null)
 
-  const handleHudUpdate = useCallback((kmh: number, drifting: boolean) => {
+  const handleHudUpdate = useCallback((kmh: number) => {
     if (speedRef.current) speedRef.current.textContent = `${kmh.toFixed(0)} km/h`
-    if (driftRef.current) driftRef.current.style.display = drifting ? 'inline' : 'none'
   }, [])
 
   return (
@@ -18,9 +17,8 @@ export default function App() {
         gl={{ antialias: true }}
         dpr={Math.min(window.devicePixelRatio, 2)}
       >
-        {/* <color attach="background" args={['#66FFee']} /> */}
-        <color attach="background" args={['#1f1f26']} />
-        <fogExp2 attach="fog" args={['#2a2a2a', 0.012]} />
+        <color attach="background" args={[COLOR_SCHEMES.default.sky]} />
+        <fogExp2 attach="fog" args={COLOR_SCHEMES.default.fog} />
         <Scene onHudUpdate={handleHudUpdate} />
       </Canvas>
 
@@ -34,9 +32,8 @@ export default function App() {
         textShadow: '1px 1px 3px #000',
       }}>
         Speed: <span ref={speedRef}>0</span>
-        <span ref={driftRef} style={{ color: '#f39c12', display: 'none' }}>{'  DRIFT'}</span>
         <br />
-        <span style={{ opacity: 0.6, fontWeight: 'normal' }}>WASD / Arrows — drive | Space — handbrake</span>
+        <span style={{ opacity: 0.6, fontWeight: 'normal' }}>WASD / Arrows — drive</span>
       </div>
     </div>
   )

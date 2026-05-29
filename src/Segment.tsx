@@ -1,4 +1,5 @@
 import { Wall } from './Wall'
+import { Floor } from './Floor'
 import type { PhysicsContext } from './Physics'
 
 // Direction legend (numpad layout):
@@ -16,10 +17,11 @@ interface SegmentProps {
   wallWidth: number                   // wall thickness
   wallHeight: number
   direction: number
-  color?: number | string
+  wallColor?: number | string
+  floorColor?: number | string
 }
 
-export function Segment({ physics, position, length, wallWidth, wallHeight, direction, color }: SegmentProps) {
+export function Segment({ physics, position, length, wallWidth, wallHeight, direction, wallColor, floorColor }: SegmentProps) {
   const [cx, , cz] = position
   const y = wallHeight / 2
   // Wall centres sit half a wall-width inward from the tile edge
@@ -32,7 +34,7 @@ export function Segment({ physics, position, length, wallWidth, wallHeight, dire
       width={length}
       height={wallHeight}
       depth={wallWidth}
-      color={color}
+      color={wallColor}
     />
   )
   const wallS = (
@@ -42,7 +44,7 @@ export function Segment({ physics, position, length, wallWidth, wallHeight, dire
       width={length}
       height={wallHeight}
       depth={wallWidth}
-      color={color}
+      color={wallColor}
     />
   )
   const wallE = (
@@ -52,7 +54,7 @@ export function Segment({ physics, position, length, wallWidth, wallHeight, dire
       width={wallWidth}
       height={wallHeight}
       depth={length}
-      color={color}
+      color={wallColor}
     />
   )
   const wallW = (
@@ -62,17 +64,26 @@ export function Segment({ physics, position, length, wallWidth, wallHeight, dire
       width={wallWidth}
       height={wallHeight}
       depth={length}
-      color={color}
+      color={wallColor}
+    />
+  )
+  const floor = (
+    <Floor
+      physics={physics}
+      position={[cx, 0, cz]}
+      width={length}
+      depth={length}
+      color={floorColor}
     />
   )
 
   switch (direction) {
-    case 8: case 2: return <>{wallE}{wallW}</>   // N/S straight
-    case 4: case 6: return <>{wallN}{wallS}</>   // E/W straight
-    case 7: return <>{wallN}{wallW}</>            // NW corner
-    case 9: return <>{wallN}{wallE}</>            // NE corner
-    case 1: return <>{wallS}{wallW}</>            // SW corner
-    case 3: return <>{wallS}{wallE}</>            // SE corner
+    case 8: case 2: return <>{wallE}{wallW}{floor}</>   // N/S straight
+    case 4: case 6: return <>{wallN}{wallS}{floor}</>   // E/W straight
+    case 7: return <>{wallN}{wallW}{floor}</>            // NW corner
+    case 9: return <>{wallN}{wallE}{floor}</>            // NE corner
+    case 1: return <>{wallS}{wallW}{floor}</>            // SW corner
+    case 3: return <>{wallS}{wallE}{floor}</>            // SE corner
     default: return null
   }
 }

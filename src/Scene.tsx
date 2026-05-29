@@ -7,9 +7,10 @@ import { Input } from './Input'
 import { Car } from './Car'
 import { Track } from './Track.tsx'
 import type { TrackLoadInfo } from './TrackTypes'
+import { COLOR_SCHEMES } from './options.ts'
 
 interface SceneProps {
-  onHudUpdate: (kmh: number, drifting: boolean) => void
+  onHudUpdate: (kmh: number) => void
 }
 
 export function Scene({ onHudUpdate }: SceneProps) {
@@ -81,7 +82,7 @@ export function Scene({ onHudUpdate }: SceneProps) {
       carRef.current.position.set(pos.x, pos.y, pos.z)
       carRef.current.rotation.set(0, car.yaw, 0)
 
-      onHudUpdate(car.velocity.length() * 3.6, input.handbrake)
+      onHudUpdate(car.velocity.length() * 3.6)
     }
 
     // Camera always follows (uses origin until physics is ready)
@@ -99,18 +100,13 @@ export function Scene({ onHudUpdate }: SceneProps) {
   return (
     <>
       <directionalLight
-        color={0xfff5e0}
+        color={COLOR_SCHEMES.default.directionalLight}
         intensity={2.5}
         position={[15, 30, 10]}
         castShadow
         shadow-mapSize={[2048, 2048]}
       />
-      <ambientLight color={0xffffff} intensity={1.2} />
-
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[4000, 4000]} />
-        <meshLambertMaterial color={0xf5f5dc} />
-      </mesh>
+      <ambientLight color={COLOR_SCHEMES.default.ambientLight} intensity={1.2} />
 
       <Track
         physics={physics}

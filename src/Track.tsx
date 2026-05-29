@@ -3,6 +3,7 @@ import { Segment } from './Segment.tsx'
 import { Checkpoint } from './Checkpoint.tsx'
 import { parseTrack } from './parseTrack'
 import { buildCheckpoints, carStartFromData } from './buildCheckpoints'
+import { COLOR_SCHEMES } from './options.ts'
 import type { PhysicsContext } from './Physics'
 import type { TrackData, TrackLoadInfo } from './TrackTypes'
 
@@ -40,9 +41,9 @@ export function Track({
         })
       })
       .catch(err => console.error('[Track]', err))
-  // trackPath should not change at runtime; onLoad is intentionally excluded
-  // to avoid re-fetching when the callback reference changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // trackPath should not change at runtime; onLoad is intentionally excluded
+    // to avoid re-fetching when the callback reference changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackPath])
 
   // Flat list of non-empty tiles with their world-space centre positions
@@ -78,6 +79,8 @@ export function Track({
           wallWidth={width}
           wallHeight={height}
           direction={seg.dir}
+          wallColor={COLOR_SCHEMES.default.wall}
+          floorColor={COLOR_SCHEMES.default.floor}
         />
       ))}
 
