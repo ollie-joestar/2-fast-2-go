@@ -1,6 +1,7 @@
 import { useRef, useLayoutEffect } from 'react'
 import * as THREE from 'three'
 import { COLOR_SCHEMES } from './options.ts'
+import { useGLTF } from "@react-three/drei"
 
 function Headlight({ position }: { position: [number, number, number] }) {
   const lightRef = useRef<THREE.SpotLight>(null!)
@@ -16,15 +17,15 @@ function Headlight({ position }: { position: [number, number, number] }) {
         <boxGeometry args={[0.18, 0.1, 0.05]} />
         <meshLambertMaterial color={0xffffaa} emissive={0xffff66} emissiveIntensity={0.6} />
       </mesh>
-      {/* <spotLight */}
-      {/*   ref={lightRef} */}
-      {/*   position={position} */}
-      {/*   angle={Math.PI / 6} */}
-      {/*   penumbra={0.2} */}
-      {/*   intensity={30} */}
-      {/*   distance={25} */}
-      {/*   color={COLOR_SCHEMES.default.directionalLight} */}
-      {/* /> */}
+      <spotLight
+        ref={lightRef}
+        position={position}
+        angle={Math.PI / 6}
+        penumbra={0.2}
+        intensity={30}
+        distance={25}
+        color={COLOR_SCHEMES.default.directionalLight}
+      />
       {/* Target sits 12 units forward in local car space — moves with the car */}
       < object3D ref={targetRef} position={[position[0], position[1], position[2] + 12]} />
     </>
@@ -32,10 +33,13 @@ function Headlight({ position }: { position: [number, number, number] }) {
 }
 
 export function Car({ carRef }: { carRef: React.RefObject<THREE.Mesh> }) {
+
+  const { scene } = useGLTF('/models/ae.glb')
   return (
     <>
       {/* Car body */}
       <mesh ref={carRef} castShadow>
+        {/* <primitive object={scene} scale={1.0} position={[0, 1.25, 0]} rotation={[0, Math.PI, 0]} /> */}
         <boxGeometry args={[1, 0.5, 2]} />
         <meshLambertMaterial color={COLOR_SCHEMES.default.car} />
 
@@ -46,9 +50,11 @@ export function Car({ carRef }: { carRef: React.RefObject<THREE.Mesh> }) {
         </mesh>
 
         {/* Headlights with spotlights */}
-        <Headlight position={[-0.35, 0.05, 1.03]} />
-        <Headlight position={[0.35, 0.05, 1.03]} />
+        {/* <Headlight position={[-0.35, 0.05, 1.03]} /> */}
+        {/* <Headlight position={[0.35, 0.05, 1.03]} /> */}
       </mesh>
     </>
   )
 }
+
+useGLTF.preload('/models/ae.glb')

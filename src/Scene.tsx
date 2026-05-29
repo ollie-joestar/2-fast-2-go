@@ -110,7 +110,7 @@ export function Scene({ onHudUpdate }: SceneProps) {
       <Track
         physics={physics}
         trackPath="/tracks/ShippingDock"
-        showCheckpoints={false}
+        showCheckpoints={true}
         onLoad={handleTrackLoad}
       />
 
