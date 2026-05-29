@@ -13,10 +13,10 @@ export async function initPhysics(): Promise<PhysicsContext> {
   return { world, R: RAPIER };
 }
 
-export function createGround({ world, R }: PhysicsContext, halfSize = 2000): void {
-  const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(0, -0.1, 0));
-  world.createCollider(R.ColliderDesc.cuboid(halfSize, 0.1, halfSize), body);
-}
+// export function createGround({ world, R }: PhysicsContext, halfSize = 2000): void {
+//   const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(0, -0.1, 0));
+//   world.createCollider(R.ColliderDesc.cuboid(halfSize, 0.1, halfSize), body);
+// }
 
 export function createCarBody({ world, R }: PhysicsContext): RAPIER.RigidBody {
   const desc = R.RigidBodyDesc.dynamic()
@@ -31,11 +31,11 @@ export function createCarBody({ world, R }: PhysicsContext): RAPIER.RigidBody {
   return body;
 }
 
-export function createWall(
-  { world, R }: PhysicsContext,
-  x: number, y: number, z: number,
-  hw: number, hh: number, hd: number,
-): void {
-  const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(x, y, z));
-  world.createCollider(R.ColliderDesc.cuboid(hw, hh, hd), body);
-}
+// export function createWall(
+//   { world, R }: PhysicsContext,
+//   x: number, y: number, z: number,
+//   hw: number, hh: number, hd: number,
+// ): void {
+//   const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(x, y, z));
+//   world.createCollider(R.ColliderDesc.cuboid(hw, hh, hd), body);
+// }

@@ -70,7 +70,7 @@ export function Segment({ physics, position, length, wallWidth, wallHeight, dire
   const floor = (
     <Floor
       physics={physics}
-      position={[cx, 0, cz]}
+      position={[cx, -0.1, cz]}
       width={length}
       depth={length}
       color={floorColor}

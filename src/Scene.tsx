@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { initPhysics, createGround, createCarBody, type PhysicsContext } from './Physics'
+import { initPhysics, createCarBody, type PhysicsContext } from './Physics'
 import { CarController } from './CarController'
 import { Input } from './Input'
 import { Car } from './Car'
@@ -37,7 +37,6 @@ export function Scene({ onHudUpdate }: SceneProps) {
 
     initPhysics().then((ctx) => {
       physicsRef.current = ctx
-      createGround(ctx)
       const ctrl = new CarController(createCarBody(ctx))
       carControllerRef.current = ctrl
       // If the track fetch finished before Rapier was ready, apply the queued spawn point now
