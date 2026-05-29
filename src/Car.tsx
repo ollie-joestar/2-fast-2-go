@@ -1,60 +1,36 @@
-import { useRef, useLayoutEffect } from 'react'
+import { useRef } from 'react'
 import * as THREE from 'three'
-import { COLOR_SCHEMES } from './options.ts'
 import { useGLTF } from "@react-three/drei"
 
-function Headlight({ position }: { position: [number, number, number] }) {
-  const lightRef = useRef<THREE.SpotLight>(null!)
-  const targetRef = useRef<THREE.Object3D>(null!)
-
-  useLayoutEffect(() => {
-    lightRef.current.target = targetRef.current
-  }, [])
-
-  return (
-    <>
-      <mesh position={position}>
-        <boxGeometry args={[0.18, 0.1, 0.05]} />
-        <meshLambertMaterial color={0xffffaa} emissive={0xffff66} emissiveIntensity={0.6} />
-      </mesh>
-      <spotLight
-        ref={lightRef}
-        position={position}
-        angle={Math.PI / 6}
-        penumbra={0.2}
-        intensity={30}
-        distance={25}
-        color={COLOR_SCHEMES.default.directionalLight}
-      />
-      {/* Target sits 12 units forward in local car space — moves with the car */}
-      < object3D ref={targetRef} position={[position[0], position[1], position[2] + 12]} />
-    </>
-  )
+interface CarProps {
+  showdebug: boolean
+  carRef: React.RefObject<THREE.Mesh>
 }
 
-export function Car({ carRef }: { carRef: React.RefObject<THREE.Mesh> }) {
+export function Car({ showdebug, carRef }: CarProps) {
 
-  const { scene } = useGLTF('/models/ae.glb')
+  const { scene } = useGLTF('/models/ae86.glb')
+  // scene.traverse((child) => {
+  //   if (child instanceof THREE.Mesh) {
+  //     child.castShadow = true
+  //     child.receiveShadow = true
+  //   }
+  // }
+  // )
   return (
     <>
       {/* Car body */}
       <mesh ref={carRef} castShadow>
-        {/* <primitive object={scene} scale={1.0} position={[0, 1.25, 0]} rotation={[0, Math.PI, 0]} /> */}
-        <boxGeometry args={[1, 0.5, 2]} />
-        <meshLambertMaterial color={COLOR_SCHEMES.default.car} />
-
-        {/* Cabin */}
-        <mesh position={[0, 0.41, -0.15]}>
-          <boxGeometry args={[0.75, 0.32, 0.95]} />
-          <meshLambertMaterial color={COLOR_SCHEMES.default.car} />
-        </mesh>
-
-        {/* Headlights with spotlights */}
-        {/* <Headlight position={[-0.35, 0.05, 1.03]} /> */}
-        {/* <Headlight position={[0.35, 0.05, 1.03]} /> */}
+        <primitive object={scene} scale={0.5} position={[0, 0.1, 0]} rotation={[0, Math.PI, 0]} />
+        {showdebug && (
+          <mesh>
+            <boxGeometry args={[1, 0.5, 2.2]} />
+            <meshBasicMaterial wireframe color="#00ff88" />
+          </mesh>
+        )}
       </mesh>
     </>
   )
 }
 
-useGLTF.preload('/models/ae.glb')
+useGLTF.preload('/models/ae86.glb')

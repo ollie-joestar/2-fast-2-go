@@ -172,7 +172,7 @@ export function Scene({ onHudUpdate, onDebugUpdate, showDebug = false }: ScenePr
         onFinishCross={handleFinishCross}
       />
 
-      <Car carRef={carRef} />
+      <Car showdebug={showDebug} carRef={carRef} />
     </>
   )
 }

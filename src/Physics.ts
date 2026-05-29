@@ -27,7 +27,7 @@ export function createCarBody({ world, R }: PhysicsContext): RAPIER.RigidBody {
   // Disable physics-driven rotation on all axes — we set it manually each frame
   body.setEnabledRotations(false, false, false, false);
   // Half-extents match the BoxGeometry(1, 0.5, 2) car mesh
-  world.createCollider(R.ColliderDesc.cuboid(0.5, 0.25, 1.0), body);
+  world.createCollider(R.ColliderDesc.cuboid(0.5, 0.25, 1.1), body);
   return body;
 }
 

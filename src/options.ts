@@ -18,7 +18,7 @@ export const COLOR_SCHEMES: Record<string, ColorScheme> = {
   default: {
     directionalLight: 0xfff5e0,
     ambientLight: 0xfff5e0,
-    fog: [0xffaa88, 0.012],
+    fog: [0xffffff, 0.010],
     // floor: 0x1b1717,
     floor: 0x849aad,
     wall: 0x849aad,
